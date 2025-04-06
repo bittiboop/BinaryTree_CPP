@@ -3,6 +3,8 @@
 #include <vector>
 #include <windows.h>
 #include <algorithm>
+#include <fstream>
+#include <sstream>
 
 using namespace std;
 
@@ -20,6 +22,7 @@ struct DictionaryNode {
 class Dictionary {
 private:
     DictionaryNode* root;
+    string filename;
     
     DictionaryNode* insertNode(DictionaryNode* node, string eng, string ukr, int count) {
         if (node == nullptr) {
@@ -90,7 +93,6 @@ private:
         
         return node;
     }
-
     
     void collectWords(DictionaryNode* node, vector<pair<string, int>>& words) {
         if (node == nullptr) {
@@ -122,8 +124,20 @@ private:
         delete node;
     }
     
+    void saveNodeToFile(DictionaryNode* node, ofstream& file) {
+        if (node == nullptr) {
+            return;
+        }
+        
+        saveNodeToFile(node->left, file);
+        
+        file << node->english << "|" << node->ukrainian << "|" << node->accessCount << endl;
+        
+        saveNodeToFile(node->right, file);
+    }
+    
 public:
-    Dictionary() : root(nullptr) {}
+    Dictionary(string file = "dictionary.txt") : root(nullptr), filename(file) {}
     
     ~Dictionary() {
         destroyTree(root);
@@ -215,6 +229,56 @@ public:
                  << " (Access count: " << node->accessCount << ")" << endl;
         }
     }
+    
+    bool saveDictionary() {
+        ofstream file(filename);
+        if (!file.is_open()) {
+            cout << "Error: Could not open file " << filename << " for writing." << endl;
+            return false;
+        }
+        
+        saveNodeToFile(root, file);
+        
+        file.close();
+        cout << "Dictionary saved to " << filename << " successfully." << endl;
+        return true;
+    }
+    
+    bool loadDictionary() {
+        ifstream file(filename);
+        if (!file.is_open()) {
+            cout << "Notice: Dictionary file " << filename << " not found. Starting with empty dictionary." << endl;
+            return false;
+        }
+        
+        destroyTree(root);
+        root = nullptr;
+        
+        string line;
+        while (getline(file, line)) {
+            istringstream iss(line);
+            string english, ukrainian;
+            int accessCount;
+            
+            getline(iss, english, '|');
+            getline(iss, ukrainian, '|');
+            iss >> accessCount;
+            
+            addWord(english, ukrainian, accessCount);
+        }
+        
+        file.close();
+        cout << "Dictionary loaded from " << filename << " successfully." << endl;
+        return true;
+    }
+    
+    void setFilename(string newFilename) {
+        filename = newFilename;
+    }
+    
+    string getFilename() const {
+        return filename;
+    }
 };
 
 
@@ -224,18 +288,11 @@ int main(int argc, char* argv[])
     SetConsoleCP(CP_UTF8);
     Dictionary dict;
     int choice;
-    string english, ukrainian;
+    string english, ukrainian, filename;
     int count;
-
     
-    cout << "Initializing dictionary with sample words..." << endl;
-    dict.addWord("hello", "привіт", 5);
-    dict.addWord("world", "світ", 3);
-    dict.addWord("book", "книга", 7);
-    dict.addWord("computer", "комп'ютер", 10);
-    dict.addWord("university", "університет", 2);
-    dict.addWord("student", "студент", 8);
-    dict.addWord("professor", "професор", 1);
+    dict.loadDictionary();
+    
     
     while (true)
     {
@@ -246,6 +303,9 @@ int main(int argc, char* argv[])
         cout << "4. Delete word" << endl;
         cout << "5. Show top 3 most popular words" << endl;
         cout << "6. Show top 3 least popular words" << endl;
+        cout << "7. Save dictionary to file" << endl;
+        cout << "8. Load dictionary from file" << endl;
+        cout << "9. Change dictionary file" << endl;
         cout << "0. Exit" << endl;
         cout << "Enter your choice: ";
         cin >> choice;
@@ -285,8 +345,26 @@ int main(int argc, char* argv[])
         case 6:
             dict.displayLeastPopular();
             break;
+            
+        case 7:
+            dict.saveDictionary();
+            break;
+            
+        case 8:
+            dict.loadDictionary();
+            break;
+            
+        case 9:
+            cout << "Current file: " << dict.getFilename() << endl;
+            cout << "Enter new filename: ";
+            cin >> filename;
+            dict.setFilename(filename);
+            cout << "Dictionary file changed to: " << filename << endl;
+            break;
                 
         case 0:
+            cout << "Saving dictionary before exit..." << endl;
+            dict.saveDictionary();
             cout << "Exiting program. Goodbye!" << endl;
             return 0;
                 
